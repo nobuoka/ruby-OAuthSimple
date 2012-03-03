@@ -10,7 +10,7 @@ class RequestParamList
   def initialize( arg = Array.new() )
     if ( arg.is_a? Array ) then
       arg.each do |item|
-        if ( ! item.is_a?( Array ) || item.length != 2 || ! item[0].is_a?( String ) || ! item[1].is_a?( String ) ) then
+        if not item.is_a?( Array ) or item.length != 2 or not item[0].is_a?( String ) or not ( item[1].is_a?( String ) or item[1].nil? ) then
           raise "引数として与えられた Array が正しい形式ではありません. 引数として与えられた Array オブジェクトの各要素は, String オブジェクト 2 つからなる Array オブジェクトである必要があります"
         end
       end
@@ -40,7 +40,8 @@ class RequestParamList
   end
   
   def self.from_percent_encoded_str( str )
-    new decode_from_percent_encoded_str( str )
+    # HelperFunctions モジュールで定義されている... 関数呼び出しにはできない?
+    new HelperFunctions.decode_from_percent_encoded_str( str )
   end
   
   public
@@ -49,7 +50,8 @@ class RequestParamList
   end
   
   def concat( other )
-    return @list.concat( other.get_list() )
+    @list.concat( other.get_list() )
+    return self
   end
   
   def add( name, value )
@@ -132,7 +134,7 @@ class RequestParamList
         case a[0] <=> b[0]
           when  1 then rel =  1
           when -1 then rel = -1
-          when  0 then rel = encode( a[1] ) <=> encode( b[1] )
+          when  0 then rel = a[1] <=> b[1]
         end
       end.
       map{ |e| "#{e[0]}=#{e[1]}" }.

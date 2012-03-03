@@ -1,1 +1,1 @@
-= oauth-simple [RubyGem]
+= oauth_simple [RubyGem]

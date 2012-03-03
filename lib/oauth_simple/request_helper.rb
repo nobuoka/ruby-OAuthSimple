@@ -28,7 +28,7 @@ class RequestHelper
       @req_uri.query = nil
     end
     if query_params
-      q_params_list << q_params_list
+      q_params_list << query_params
     end
     @q_params = q_params_list.empty? ? nil : q_params_list.inject{|a,b| a.concat b}
     # RequestParamList or nil

@@ -29,10 +29,9 @@ module HelperFunctions
     #  end
     #  sb_str << encode( item[0] ) << "=" << encode( item[1] )
     #end
-    base_string = [ method, uri_str, params_str ].map{ |e| enc_perenc(e) }.join('&')
-    digest = OpenSSL::HMAC::digest( OpenSSL::Digest::SHA1.new(), secret_str, base_string )
-    sig = [digest].pack("m").gsub!( /\n/u, "" )
-    return sig
+    base_str = [ method, uri_str, params_str ].map{ |e| enc_perenc(e) }.join('&')
+    digest = OpenSSL::HMAC::digest( OpenSSL::Digest::SHA1.new(), secret_str, base_str )
+    return [digest].pack('m').gsub!( /\n/u, '' )
   end
   
   # param  : String

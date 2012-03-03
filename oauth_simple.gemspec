@@ -1,6 +1,6 @@
 # coding: utf-8
 
-require "rake"
+require 'rake'
 
 # reference : http://guides.rubygems.org/specification-reference/
 Gem::Specification.new do |spec|
