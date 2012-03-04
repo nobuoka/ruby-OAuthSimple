@@ -50,23 +50,29 @@ class HTTP < Net::HTTP
       end
       
       secret_str = [ @consumer_secret, @token_secret ].
-          map {|e| e.nil? ? '' : enc_perenc( @consumer_secret ) }.join( '&' )
+                   map {|e| e.nil? ? '' : enc_perenc( e ) }.
+                   join( '&' )
       
       # for debug
-      #puts "request method - #{req_method}"
+      #puts "request method - #{req_method    }"
       #puts "http or https  - #{uri_str_scheme}"
-      #puts "host[:port]    - #{uri_str_host}"
-      #puts "path           - #{uri_str_path}"
+      #puts "host[:port]    - #{uri_str_host  }"
+      #puts "path           - #{uri_str_path  }"
       #puts "query str      - #{query_str.nil? ? '<nil>' : query_str}"
-      #puts "body str       - #{body_str.nil? ? '<nil>' : body_str}"
+      #puts "body str       - #{body_str.nil?  ? '<nil>' : body_str }"
       
       p_params = RequestParamList.new()
-      p_params.add( 'oauth_consumer_key'      , @consumer_key          ) if @consumer_key
-      p_params.add( 'oauth_token'             , @token                 ) if @token
-      p_params.add( 'oauth_signature_method'  , @signature_method      ) if @signature_method
-      p_params.add( 'oauth_timestamp'         , create_timestamp_str() )
-      p_params.add( 'oauth_nonce'             , create_nonce_str()     )
-      p_params.add( 'oauth_version'           , '1.0' )
+      p_params.add( 'oauth_consumer_key'    , @consumer_key          ) if @consumer_key
+      p_params.add( 'oauth_token'           , @token                 ) if @token
+      p_params.add( 'oauth_signature_method', @signature_method      ) if @signature_method
+      p_params.add( 'oauth_timestamp'       , create_timestamp_str() )
+      p_params.add( 'oauth_nonce'           , create_nonce_str()     )
+      p_params.add( 'oauth_version'         , '1.0'                  )
+      if req.respond_to? :oauth_params
+        req.oauth_params.each_pair do |key,value|
+          p_params.add( key, value )
+        end
+      end
       
       param_list = RequestParamList.new()
       param_list.concat p_params
@@ -103,7 +109,79 @@ class HTTP < Net::HTTP
   end
   
   def set_oauth_signature_method( sigmet )
+    if sigmet != 'HMAC-SHA1'
+      raise %q{at this time, only 'HMAC-SHA1' is supported}
+    end
     @signature_method = sigmet
+  end
+  
+  # TODO: POST メソッド以外も使えるように
+  def request_oauth_temp_credentials( path, oauth_callback_uri, &block )
+    req = Post.new( path )
+    req.set_oauth_param( 'oauth_callback', oauth_callback_uri )
+    token  = nil
+    secret = nil
+    request( req ) do |res|
+      if res.code == '200'
+         params = RequestParamList.from_percent_encoded_str res.body
+         token  = params.get_values( 'oauth_token' )[0]
+         secret = params.get_values( 'oauth_token_secret' )[0]
+      else
+        if block
+          block.call res
+        else
+          raise 'error'
+        end
+      end
+    end
+    
+    # Set credentials automatically
+    set_oauth_user_credentials( token, secret )
+    return token, secret
+  end
+  
+  # TODO: POST メソッド以外も使えるように
+  def request_oauth_token_credentials( path, oauth_verifier, &block )
+    req = Post.new( path )
+    req.set_oauth_param( 'oauth_verifier', oauth_verifier )
+    token  = nil
+    secret = nil
+    request( req ) do |res|
+      if res.code == '200'
+         params = RequestParamList.from_percent_encoded_str res.body
+         token  = params.get_values( 'oauth_token' )[0]
+         secret = params.get_values( 'oauth_token_secret' )[0]
+      else
+        if block
+          block.call res
+        else
+          raise 'error'
+        end
+      end
+    end
+    set_oauth_user_credentials( token, secret )
+    return token, secret
+  end
+  
+  module OAuthParamsHandler
+    def set_oauth_param( name, value )
+      # TODO: name must start with 'oauth_'
+      @oauth_params ||= {}
+      @oauth_params[ name ] = value
+    end
+    def get_oauth_param( name )
+      ( @oauth_params || {} )[ name ]
+    end
+    def oauth_params
+      @oauth_params || {}
+    end
+  end
+  
+  class Get < Net::HTTP::Get
+    include OAuthParamsHandler
+  end
+  class Post < Net::HTTP::Post
+    include OAuthParamsHandler
   end
   
 end

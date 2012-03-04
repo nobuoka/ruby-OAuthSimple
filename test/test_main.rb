@@ -6,6 +6,7 @@ require 'test/unit'
 $LOAD_PATH.unshift File.dirname(__FILE__)
 $LOAD_PATH.unshift File.join( File.dirname(__FILE__), "..", "lib" )
 require 'oauth_simple'
+require 'oauth_simple/http'
 
 class TestMain < Test::Unit::TestCase
   
@@ -114,37 +115,27 @@ class TestMain < Test::Unit::TestCase
     #p req_helper.oauth_header_str
   end
   
-  def test_http
-=begin
-    require 'oauth_simple/http'
-    
+  ###
+  # test by using OAuth Test Server : http://term.ie/oauth/example/
+  def test_getting_request_token
     # OAuthSimple::HTTP is a subclass of Net::HTTP
-    http = OAuthSimple::HTTP.new( 'api.twitter.com', 443 )
-    
-    # SSL setting
-    http.use_ssl     = true
-    http.verify_mode = OpenSSL::SSL::VERIFY_PEER #認証モードをセット
+    http = OAuthSimple::HTTP.new( 'term.ie' )
     
     # OAuth setting (this feature provided by OAuthSimple::HTTP)
-    http.use_oauth   = true
-    http.set_oauth_client_credentials( 'your_client_key', 'your_client_secret' )
+    http.use_oauth = true
+    http.set_oauth_client_credentials( 'key', 'secret' )
     http.set_oauth_signature_method( 'HMAC-SHA1' ) # at this time, only 'HMAC-SHA1' is supported
     
     # connection start
     http.start() do |http|
       assert_equal( http.class, OAuthSimple::HTTP )
-      http.request_post( '/oauth/request_token', nil ) do |res|
+      http.request_post( '/oauth/example/request_token.php', nil ) do |res|
         assert_equal( '200', res.code )
-        #if res.code == '200'
-        #  res.read_body do |str|
-        #    puts 'str: ', str
-        #  end
-        #else
-        #  p res.body
-        #end
+        assert_equal( 'oauth_token=requestkey&oauth_token_secret=requestsecret', res.body )
       end
+      
+      token, secret = http.request_oauth_temp_credentials( '/oauth/example/request_token.php', 'oob' )
     end
-=end
   end
   
 end

@@ -39,32 +39,54 @@ Following example shows you how to obtain a request token from Twitter server:
   end
 
 Alternatively, you can use OAuthSimple::HTTP, which is a subclass of Net::HTTP.
+Following example shows you how to obtain a temporaty credentials (request token) from Twitter server, 
+how to obtain a token credentials (access token), and how to issue a authenticated request:
 
   require 'net/https' # if you use ssl
-  require 'oauth_simple/http'
-  
+  require 'oauth_simple'
+  #
   # OAuthSimple::HTTP is a subclass of Net::HTTP
   http = OAuthSimple::HTTP.new( 'api.twitter.com', 443 )
-  
+  #
   # SSL setting
   http.use_ssl     = true
   http.verify_mode = OpenSSL::SSL::VERIFY_PEER # 認証モードをセット
-  
-  # OAuth setting (this feature provided by OAuthSimple::HTTP)
-  http.use_oauth   = true
-  http.set_oauth_client_credentials( 'your_client_key', 'your_client_secret' )
+  #
+  # OAuth setting (this feature is provided by OAuthSimple::HTTP)
+  http.use_oauth = true
+  http.set_oauth_client_credentials( 'YOUR_CLIENT_CREDENTIALS', 'YOUR_CLIENT_SECRET' )
   http.set_oauth_signature_method( 'HMAC-SHA1' ) # at this time, only 'HMAC-SHA1' is supported
-  
+  #
   # connection start
   http.start() do |http|
-    assert_equal( http.class, OAuthSimple::HTTP )
-    http.request_post( '/oauth/request_token', nil ) do |res|
-      if res.code == '200'
-        res.read_body do |str|
-          puts 'str: ', str
-        end
-      else
-        p res.body
-      end
+    # == Obtaining Temporary Credentials ==
+    token, secret = http.request_oauth_temp_credentials( '/oauth/request_token', 'oob' ) do |res_failed|
+      # when response code is not '200', this block is called
+      raise res_failed.body
+    end
+    # token and secret are set to OAuthSimple::HTTP object automatically in the request_oauth_temp_credentials method,
+    # so you need not set them explicitly as follows
+    #   http.set_oauth_user_credentials( token, secret )
+    #
+    # == Resource Owner Authorization ==
+    puts "access to https://api.twitter.com/oauth/authorize?oauth_token=#{OAuthSimple::HelperFunctions.enc_perenc(token)} " + 
+         'and input verifier'
+    $stdout << 'verifier : '
+    verifier = $stdin.gets.chomp
+    #
+    # == Obtaining Token Credentials ==
+    token, secret = http.request_oauth_token_credentials( '/oauth/access_token', verifier ) do |res_failed|
+      # when response code is not '200', this block is called
+      raise res_failed.body
+    end
+    # token and secret are set to OAuthSimple::HTTP object automatically in the request_oauth_token_credentials method,
+    # you need not set them explicitly as follows
+    #   http.set_oauth_user_credentials( token, secret )
+    #
+    # == Authenticated Requests ==
+    http.set_oauth_user_credentials( token, secret )
+    http.request_get( '/1/statuses/home_timeline.json?include_entities=true' ) do |res|
+      p res.code
+      p res.body
     end
   end
