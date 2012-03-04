@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   #   Required gemspec attributes
   # ===============================
   spec.name    = 'oauth_simple'
-  spec.version = '0.1.0-pre'
+  spec.version = '0.1.0.pre'
   spec.summary = 'Helper for OAuth 1.0'
   spec.files = FileList[
     'README.rdoc',
