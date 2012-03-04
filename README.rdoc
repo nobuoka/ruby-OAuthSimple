@@ -1,1 +1,70 @@
 = oauth_simple [RubyGem]
+
+== Example
+
+Following example shows you how to obtain a request token from Twitter server:
+
+  require "oauth_simple"
+  
+  req_uri_str  = 'https://api.twitter.com/oauth/request_token'
+  req_method   = 'POST'
+  consumer_sec = 'your_consumer_secret'
+  
+  req_helper = OAuthSimple::RequestHelper.new(
+    URI.parse( uri_str ),
+    req_method,
+    "#{OAuthSimple::HelperFunctions.enc_perenc(consumer_sec)}&",
+    OAuthSimple::RequestParamList.new( [
+      [ 'oauth_consumer_key',     'your_consumer_key'                                 ],
+      [ 'oauth_signature_method', 'HMAC-SHA1'                                         ],
+      [ 'oauth_timestamp',        OAuthSimple::HelperFunctions.create_timestamp_str() ],
+      [ 'oauth_nonce',            OAuthSimple::HelperFunctions.create_nonce_str()     ],
+      [ 'oauth_version',          '1.0'                                               ],
+    ] ),
+  )
+  
+  require 'net/https'
+  http = Net::HTTP.new( req_helper.host, req_helper.port )
+  http.use_ssl = true                          # SSLを有効に
+  http.verify_mode = OpenSSL::SSL::VERIFY_PEER # 認証モードをセット
+  http.start do |http|
+    http.request_post( req_helper.qpath, req_helper.req_body,
+                { 'Authorization' => req_helper.oauth_header_str } ) do |res|
+      if res.code == '200'
+        res.read_body do |str|
+          puts 'str: ', str
+        end
+      end
+    end
+  end
+
+Alternatively, you can use OAuthSimple::HTTP, which is a subclass of Net::HTTP.
+
+  require 'net/https' # if you use ssl
+  require 'oauth_simple/http'
+  
+  # OAuthSimple::HTTP is a subclass of Net::HTTP
+  http = OAuthSimple::HTTP.new( 'api.twitter.com', 443 )
+  
+  # SSL setting
+  http.use_ssl     = true
+  http.verify_mode = OpenSSL::SSL::VERIFY_PEER # 認証モードをセット
+  
+  # OAuth setting (this feature provided by OAuthSimple::HTTP)
+  http.use_oauth   = true
+  http.set_oauth_client_credentials( 'your_client_key', 'your_client_secret' )
+  http.set_oauth_signature_method( 'HMAC-SHA1' ) # at this time, only 'HMAC-SHA1' is supported
+  
+  # connection start
+  http.start() do |http|
+    assert_equal( http.class, OAuthSimple::HTTP )
+    http.request_post( '/oauth/request_token', nil ) do |res|
+      if res.code == '200'
+        res.read_body do |str|
+          puts 'str: ', str
+        end
+      else
+        p res.body
+      end
+    end
+  end

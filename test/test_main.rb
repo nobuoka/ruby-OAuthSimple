@@ -91,7 +91,60 @@ class TestMain < Test::Unit::TestCase
         [ 'a3', '2 q' ],
       ] ),
     )
-    p req_helper.oauth_header_str
+    #p req_helper.oauth_header_str
+  end
+  
+  def test_factory
+    rhf = OAuthSimple::RequestHelperFactory.new(
+      :consumer_key     => '9djdj82h48djs9d2',
+      :consumer_secret  => 'j49sk3j29djd'    ,
+      :token            => 'kkk9d7dh3k39sjv7',
+      :token_secret     => 'dh893hdasih9'    ,
+      :signature_method => 'HMAC-SHA1'       ,
+    )
+    req_helper = rhf.create(
+      URI.parse( 'http://example.com/request?b5=%3D%253D&a3=a&c%40=&a2=r%20b' ),
+      'POST',
+      :body_params => OAuthSimple::RequestParamList.new( [
+        [ 'c2', nil   ],
+        [ 'a3', '2 q' ],
+      ] )
+    )
+    assert_equal( req_helper.class, OAuthSimple::RequestHelper )
+    #p req_helper.oauth_header_str
+  end
+  
+  def test_http
+=begin
+    require 'oauth_simple/http'
+    
+    # OAuthSimple::HTTP is a subclass of Net::HTTP
+    http = OAuthSimple::HTTP.new( 'api.twitter.com', 443 )
+    
+    # SSL setting
+    http.use_ssl     = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_PEER #認証モードをセット
+    
+    # OAuth setting (this feature provided by OAuthSimple::HTTP)
+    http.use_oauth   = true
+    http.set_oauth_client_credentials( 'your_client_key', 'your_client_secret' )
+    http.set_oauth_signature_method( 'HMAC-SHA1' ) # at this time, only 'HMAC-SHA1' is supported
+    
+    # connection start
+    http.start() do |http|
+      assert_equal( http.class, OAuthSimple::HTTP )
+      http.request_post( '/oauth/request_token', nil ) do |res|
+        assert_equal( '200', res.code )
+        #if res.code == '200'
+        #  res.read_body do |str|
+        #    puts 'str: ', str
+        #  end
+        #else
+        #  p res.body
+        #end
+      end
+    end
+=end
   end
   
 end
@@ -99,46 +152,3 @@ end
 __END__
 
 assert( .... )
-
-require 'uri'
-require 'net/http'
-
-# 送信先 URL
-url = 'https://api.twitter.com/oauth/request_token'
-# リクエストメソッド
-method = 'POST'
-# Consumer key と secret
-consumer_key    = "XXXXXXXXXX"
-consumer_secret = "XXXXXXXXXX"
-# 今回は request token を求める例で token secret はないので空文字列
-token_secret = ''
-# secrets 文字列 (Consumer secret と token secret を繋いだもの)
-secrets = consumer_secret + '&' + token_secret
-# OAuth 関係のパラメータ
-oauth_param_list = OAuthRequestHelper::ParamList.new(
-  [
-    [ 'oauth_consumer_key',     consumer_key ],
-    [ 'oauth_nonce',            OAuthRequestHelper.get_nonce_string() ],
-    [ 'oauth_signature_method', 'HMAC-SHA1' ],
-    [ 'oauth_timestamp',        Long.toString( new Date().getTime() / 1000 ) ],
-    [ 'oauth_version',          '1.0' ],
-    [ 'oauth_callback',         'oob' ],
-  ] )
-# OAuthRequestHelper のインスタンス化
-# 今回はクエリパラメータにもリクエストボディにも情報を載せないので, 後ろ 2 つの引数は null
-req_helper = OAuthRequestHelper.new( url, method, secrets, oauth_param_list, nil, nil )
-# インスタンス化と同時にシグニチャ生成もされるので, あとは helper から情報を取って
-# リクエストを送信するだけ
-
-
-Net::HTTP.start( req_helper.host, req_helper.port ) do |http|
-  # -- GET --
-  # OAuth ヘッダに追加
-  http.get( req_helper.req_path, { 'OAuth' => req_helper.get_oauth_header() } )
-  # query に追加
-  http.get( req_helper.req_path_with_oauth_param )
-  # -- POST --
-  # OAuth ヘッダに追加
-  http.post( req_helper.req_path, req_helper.req_body,
-      { 'OAuth' => req_helper.get_oauth_header() } )
-end

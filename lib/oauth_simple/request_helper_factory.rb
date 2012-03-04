@@ -9,15 +9,16 @@ class RequestHelperFactory
   
   ###
   #     consumer_secret
-  #     oauth_consumer_key
-  #     oauth_token
+  #     token_secret
+  #     consumer_key
+  #     token
   #       clients MAY omit the parameter.
-  #     oauth_signature_method
-  #     oauth_timestamp
+  #     signature_method
+  #     timestamp
   #       MAY be omitted when using the "PLAINTEXT" signature method.
-  #     oauth_nonce
+  #     nonce
   #       MAY be omitted when using the "PLAINTEXT" signature method.
-  #     oauth_version
+  #     version
   #       OPTIONAL.  If present, MUST be set to "1.0". 
   # :consumer_key, :consumer_secret, :token, :token_secret, :signature_method
   # :use_default_timestamp, :use_default_nonce, :use_default_version
