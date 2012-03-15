@@ -5,9 +5,60 @@ require 'oauth_simple/helper_functions'
 require 'oauth_simple/request_param_list'
 
 module OAuthSimple
+
+###
+# Net::HTTP に OAuth 認証の機能を組み込んだサブクラス
 class HTTP < Net::HTTP
   
   include HelperFunctions
+  
+  module DefaultOAuthParamSettable
+    def set_default_oauth_client_credentials( key, secret )
+      @client_credentials = [ key, secret ]
+    end
+    
+    def set_default_oauth_user_credentials( key, secret )
+      @user_credentials = [ key, secret ]
+    end
+    
+    def set_default_signature_method( sig_met )
+      @signature_method = sig_met
+    end
+    
+    def get_default_params
+      params = {}
+      params[:oauth_client_credentials] = @client_credentials if @client_credentials
+      params[:oauth_user_credentials  ] = @user_credentials   if @user_credentials
+      params[:signature_method        ] = @signature_method   if @signature_method
+      return params
+    end
+  end
+  
+  # :stopdoc:
+  # 空のハッシュを表す定数
+  EMPTY_HASH = {}.freeze
+  # :startdoc:
+  
+  def self.create_subclass_with_default_oauth_params( oauth_params = EMPTY_HASH )
+    klass = Class.new( self ) do
+      def initialize( *args )
+        super
+        default_params = self.class.get_default_params
+        self.use_oauth = true
+        if default_params.has_key? :oauth_client_credentials
+          self.set_oauth_client_credentials( *default_params[:oauth_client_credentials] )
+        end
+        if default_params.has_key? :oauth_user_credentials
+          self.set_oauth_user_credentials( *default_params[:oauth_user_credentials] )
+        end
+        if default_params.has_key? :signature_method
+          self.set_oauth_signature_method( default_params[:signature_method] ) # at this time, only 'HMAC-SHA1' is supported
+        end
+      end
+    end
+    klass.extend DefaultOAuthParamSettable
+    return klass
+  end
   
   # @consumer_key
   # @token
@@ -130,7 +181,7 @@ class HTTP < Net::HTTP
         if block
           block.call res
         else
-          raise 'error'
+          raise 'error' # TODO
         end
       end
     end
