@@ -21,7 +21,7 @@ class HTTP < Net::HTTP
       @user_credentials = [ key, secret ]
     end
     
-    def set_default_signature_method( sig_met )
+    def set_default_oauth_signature_method( sig_met )
       @signature_method = sig_met
     end
     

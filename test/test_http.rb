@@ -15,7 +15,7 @@ class TestHttp < MiniTest::Unit::TestCase
   MyHTTP = OAuthSimple::HTTP.create_subclass_with_default_oauth_params()
   MyHTTP.set_default_oauth_client_credentials( 'key', 'secret' )
   #MyHTTP.set_default_oauth_user_credentials( key, secret )
-  MyHTTP.set_default_signature_method( 'HMAC-SHA1' )
+  MyHTTP.set_default_oauth_signature_method( 'HMAC-SHA1' )
   
   ###
   # test by using OAuth Test Server : http://term.ie/oauth/example/

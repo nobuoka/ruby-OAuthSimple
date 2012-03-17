@@ -13,6 +13,7 @@ Gem::Specification.new do |spec|
   spec.summary = 'Helper for OAuth 1.0'
   spec.files = FileList[
     'README.rdoc',
+    'rakefile.rb',
     'lib/**/*',
     'test/**/*',
     #".document",
