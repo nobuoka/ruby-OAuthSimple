@@ -127,7 +127,7 @@ class RequestParamList
   # http://tools.ietf.org/html/rfc5849#section-3.4.1.3.2
   def get_normalized_params_str()
     @list.
-      map do |e|
+      map do |e| # [ key, val ]
         [ enc_perenc( e[0] ), e[1] ? enc_perenc( e[1] ) : '' ]
       end.
       sort do |a,b|

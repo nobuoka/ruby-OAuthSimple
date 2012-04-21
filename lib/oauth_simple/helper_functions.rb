@@ -56,14 +56,15 @@ module HelperFunctions
                    : enc_perenc( pair[0] ) + '=' + enc_perenc( pair[1] )
     end.join( '&' )
   end
-  
+
+  # TODO これで良いか?
+  # UTF-8 エンコードされたものをパーセントエンコードしているとみなしてデコードする
+  # パーセントエンコードする際には文字列を UTF-8 エンコードするのは OAuth 1.0 の仕様
+  # だが, デコード時はこれでよいか?
   def dec_perenc( str )
-    return str.gsub( /%[a-fA-F\d]{2}/u ) do |s|
-      e_str = s[1,2]
-      d_str = [e_str].pack("H*")
-    end
+    str.gsub( /%[a-fA-F\d]{2}/u ){ |s| [s[1,2]].pack('H*') }.force_encoding( Encoding::UTF_8 )
   end
-  
+
   def enc_perenc( str )
     str.gsub( /[^a-zA-Z\d\-\._\~]/u ) do |s|
       d_str = s.unpack("H*")[0].upcase()
