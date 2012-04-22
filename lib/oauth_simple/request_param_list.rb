@@ -6,12 +6,17 @@ module OAuthSimple
 class RequestParamList
   
   include HelperFunctions
-  
+
+  # instance variable
+  # @list : [ [ String obj, String obj or nil ], ... ]
+
   def initialize( arg = Array.new() )
     if ( arg.is_a? Array ) then
       arg.each do |item|
         if not item.is_a?( Array ) or item.length != 2 or not item[0].is_a?( String ) or not ( item[1].is_a?( String ) or item[1].nil? ) then
-          raise "引数として与えられた Array が正しい形式ではありません. 引数として与えられた Array オブジェクトの各要素は, String オブジェクト 2 つからなる Array オブジェクトである必要があります"
+          raise "引数として与えられた Array が正しい形式ではありません. " +
+                '引数として与えられた Array オブジェクトの各要素は, String オブジェクト ' +
+                '2 つ (または 2 つめは nil) からなる Array オブジェクトである必要があります'
         end
       end
       @list = arg
@@ -88,19 +93,13 @@ class RequestParamList
     end
     return sb_str
   end
-  
+
   def to_query_string()
-    list = get_sorted_list()
+    #list = get_sorted_list()
     sb_str = String.new()
-    list.each do |item|
-      if ( sb_str != "" ) then
-        sb_str << "&"
-      end
-      sb_str << encode( item[0] ) << "=" << encode( item[1] )
-    end
-    return sb_str
+    @list.map{ |e| enc_perenc( e[0] ) + ( e[1] ? "=#{enc_perenc( e[1] )}" : '' ) }.join( '&' )
   end
-  
+
 =begin
   def to_signature_string( method, url, key )
     list = get_sorted_list()
