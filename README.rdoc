@@ -25,8 +25,8 @@ Following example shows you how to obtain a request token from Twitter server:
   
   require 'net/https'
   http = Net::HTTP.new( req_helper.host, req_helper.port )
-  http.use_ssl = true                          # SSL‚ð—LŒø‚É
-  http.verify_mode = OpenSSL::SSL::VERIFY_PEER # ”FØƒ‚[ƒh‚ðƒZƒbƒg
+  http.use_ssl = true                          # SSLã‚’æœ‰åŠ¹ã«
+  http.verify_mode = OpenSSL::SSL::VERIFY_PEER # èªè¨¼ãƒ¢ãƒ¼ãƒ‰ã‚’ã‚»ãƒƒãƒˆ
   http.start do |http|
     http.request_post( req_helper.qpath, req_helper.req_body,
                 { 'Authorization' => req_helper.oauth_header_str } ) do |res|
@@ -39,7 +39,8 @@ Following example shows you how to obtain a request token from Twitter server:
   end
 
 Alternatively, you can use OAuthSimple::HTTP, which is a subclass of Net::HTTP.
-Following example shows you how to obtain a temporaty credentials (request token) from Twitter server, 
+Following example shows you how to obtain a temporaty credentials (request token)
+from Twitter server,
 how to obtain a token credentials (access token), and how to issue a authenticated request:
 
   require 'net/https' # if you use ssl
@@ -50,7 +51,7 @@ how to obtain a token credentials (access token), and how to issue a authenticat
   #
   # SSL setting
   http.use_ssl     = true
-  http.verify_mode = OpenSSL::SSL::VERIFY_PEER # ”FØƒ‚[ƒh‚ðƒZƒbƒg
+  http.verify_mode = OpenSSL::SSL::VERIFY_PEER # èªè¨¼ãƒ¢ãƒ¼ãƒ‰ã‚’ã‚»ãƒƒãƒˆ
   #
   # OAuth setting (this feature is provided by OAuthSimple::HTTP)
   http.use_oauth = true
