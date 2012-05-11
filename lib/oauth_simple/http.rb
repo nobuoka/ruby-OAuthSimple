@@ -139,7 +139,7 @@ class HTTP < Net::HTTP
       signature = calc_signature( req_method, uri_str, param_list, secret_str )
 
       case @oauth_params_loc
-      when LOC_AUTHOLIZATION_HEADER
+      when LOC_AUTHORIZATION_HEADER
         # Authorization Header
         p_params.add( 'oauth_signature', signature )
         req.add_field( 'Authorization', 'OAuth ' + p_params.to_header_string() )
@@ -179,7 +179,7 @@ class HTTP < Net::HTTP
     @oauth_signature_method = sigmet
   end
 
-  LOC_AUTHOLIZATION_HEADER = :auth_header
+  LOC_AUTHORIZATION_HEADER = :auth_header
   LOC_REQBODY_OR_REQQUERY = :reqbody_or_reqquery
   LOC_REQQUERY = :reqquery
   def set_oauth_params_location( location )
