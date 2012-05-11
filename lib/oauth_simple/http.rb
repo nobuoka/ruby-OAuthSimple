@@ -39,6 +39,11 @@ class HTTP < Net::HTTP
   EMPTY_HASH = {}.freeze
   # :startdoc:
 
+  def initialize( *args )
+    super
+    self.set_oauth_params_location( LOC_AUTHORIZATION_HEADER )
+  end
+
   def self.create_subclass_with_default_oauth_params( oauth_params = EMPTY_HASH )
     klass = Class.new( self ) do
       def initialize( *args )
@@ -145,10 +150,13 @@ class HTTP < Net::HTTP
         req.add_field( 'Authorization', 'OAuth ' + p_params.to_header_string() )
       when LOC_REQBODY_OR_REQQUERY
         # req body or req query
+        raise 'not implemented yet'
       when LOC_REQQUERY
         # req query
+        raise 'not implemented yet'
       else
         # error
+        raise 'invalid location'
       end
     end
     return super # 引数, block をそのまま継承先へ渡す
