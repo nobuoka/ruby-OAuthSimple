@@ -7,24 +7,24 @@ require 'oauth_simple/request_param_list'
 module OAuthSimple
 
 ###
-# Net::HTTP に OAuth 認証の機能を組み込んだサブクラス
+# Subclass of Net::HTTP, which has feature of OAuth authentication
 class HTTP < Net::HTTP
-  
+
   include HelperFunctions
-  
+
   module DefaultOAuthParamSettable
     def set_default_oauth_client_credentials( key, secret )
       @client_credentials = [ key, secret ]
     end
-    
+
     def set_default_oauth_user_credentials( key, secret )
       @user_credentials = [ key, secret ]
     end
-    
+
     def set_default_oauth_signature_method( sig_met )
       @signature_method = sig_met
     end
-    
+
     def get_default_params
       params = {}
       params[:oauth_client_credentials] = @client_credentials if @client_credentials
@@ -33,12 +33,12 @@ class HTTP < Net::HTTP
       return params
     end
   end
-  
+
   # :stopdoc:
   # 空のハッシュを表す定数
   EMPTY_HASH = {}.freeze
   # :startdoc:
-  
+
   def self.create_subclass_with_default_oauth_params( oauth_params = EMPTY_HASH )
     klass = Class.new( self ) do
       def initialize( *args )
@@ -52,14 +52,17 @@ class HTTP < Net::HTTP
           self.set_oauth_user_credentials( *default_params[:oauth_user_credentials] )
         end
         if default_params.has_key? :signature_method
-          self.set_oauth_signature_method( default_params[:signature_method] ) # at this time, only 'HMAC-SHA1' is supported
+          # at this time, only 'HMAC-SHA1' is supported
+          self.set_oauth_signature_method( default_params[:signature_method] )
         end
       end
     end
     klass.extend DefaultOAuthParamSettable
+    # TODO oauth_params で渡されたパラメータをここでセット
+    #
     return klass
   end
-  
+
   # @consumer_key
   # @token
   # @signature_method
@@ -68,10 +71,9 @@ class HTTP < Net::HTTP
   # 
   # @consumer_secret
   # @token_secret
-  
+
   ###
-  # Override
-  # Net::HTTP#transport_request をオーバーライド
+  # Override: Net::HTTP#transport_request
   def transport_request( req )
     if use_oauth?
       req_method = req.method.upcase
@@ -99,11 +101,11 @@ class HTTP < Net::HTTP
           body_str = req.body
         end
       end
-      
-      secret_str = [ @consumer_secret, @token_secret ].
+
+      secret_str = [ @oauth_consumer_secret, @oauth_token_secret ].
                    map {|e| e.nil? ? '' : enc_perenc( e ) }.
                    join( '&' )
-      
+
       # for debug
       #puts "request method - #{req_method    }"
       #puts "http or https  - #{uri_str_scheme}"
@@ -111,11 +113,13 @@ class HTTP < Net::HTTP
       #puts "path           - #{uri_str_path  }"
       #puts "query str      - #{query_str.nil? ? '<nil>' : query_str}"
       #puts "body str       - #{body_str.nil?  ? '<nil>' : body_str }"
-      
+
       p_params = RequestParamList.new()
-      p_params.add( 'oauth_consumer_key'    , @consumer_key          ) if @consumer_key
-      p_params.add( 'oauth_token'           , @token                 ) if @token
-      p_params.add( 'oauth_signature_method', @signature_method      ) if @signature_method
+      {
+        'oauth_consumer_key'     => @oauth_consumer_key,
+        'oauth_token'            => @oauth_token,
+        'oauth_signature_method' => @oauth_signature_method,
+      }.each_pair{|k,v| p_params.add( k, v ) if v }
       p_params.add( 'oauth_timestamp'       , create_timestamp_str() )
       p_params.add( 'oauth_nonce'           , create_nonce_str()     )
       p_params.add( 'oauth_version'         , '1.0'                  )
@@ -124,48 +128,64 @@ class HTTP < Net::HTTP
           p_params.add( key, value )
         end
       end
-      
+
       param_list = RequestParamList.new()
       param_list.concat p_params
       param_list.concat RequestParamList.from_percent_encoded_str query_str if query_str
       param_list.concat RequestParamList.from_percent_encoded_str body_str  if body_str
-      
+
       # signature の計算
       uri_str = "#{uri_str_scheme}://#{uri_str_host}#{uri_str_path}"
       signature = calc_signature( req_method, uri_str, param_list, secret_str )
-      
-      # Authorization Header (TODO: add another way)
-      p_params.add( 'oauth_signature', signature )
-      req.add_field( 'Authorization', 'OAuth ' + p_params.to_header_string() )
+
+      case @oauth_params_loc
+      when LOC_AUTHOLIZATION_HEADER
+        # Authorization Header
+        p_params.add( 'oauth_signature', signature )
+        req.add_field( 'Authorization', 'OAuth ' + p_params.to_header_string() )
+      when LOC_REQBODY_OR_REQQUERY
+        # req body or req query
+      when LOC_REQQUERY
+        # req query
+      else
+        # error
+      end
     end
     return super # 引数, block をそのまま継承先へ渡す
   end
-  
+
   def use_oauth=( val )
     @use_oauth = val
   end
-  
+
   def use_oauth?
     @use_oauth
   end
-  
+
   def set_oauth_client_credentials( key, secret )
-    @consumer_key    = key
-    @consumer_secret = secret
+    @oauth_consumer_key    = key
+    @oauth_consumer_secret = secret
   end
-  
+
   def set_oauth_user_credentials( token, secret )
-    @token        = token
-    @token_secret = secret
+    @oauth_token        = token
+    @oauth_token_secret = secret
   end
-  
+
   def set_oauth_signature_method( sigmet )
     if sigmet != 'HMAC-SHA1'
       raise %q{at this time, only 'HMAC-SHA1' is supported}
     end
-    @signature_method = sigmet
+    @oauth_signature_method = sigmet
   end
-  
+
+  LOC_AUTHOLIZATION_HEADER = :auth_header
+  LOC_REQBODY_OR_REQQUERY = :reqbody_or_reqquery
+  LOC_REQQUERY = :reqquery
+  def set_oauth_params_location( location )
+    @oauth_params_loc = location
+  end
+
   # TODO: POST メソッド以外も使えるように
   def request_oauth_temp_credentials( path, oauth_callback_uri, &block )
     req = Post.new( path )
@@ -185,12 +205,12 @@ class HTTP < Net::HTTP
         end
       end
     end
-    
+
     # Set credentials automatically
     set_oauth_user_credentials( token, secret )
     return token, secret
   end
-  
+
   # TODO: POST メソッド以外も使えるように
   def request_oauth_token_credentials( path, oauth_verifier, &block )
     req = Post.new( path )
@@ -213,7 +233,7 @@ class HTTP < Net::HTTP
     set_oauth_user_credentials( token, secret )
     return token, secret
   end
-  
+
   module OAuthParamsHandler
     def set_oauth_param( name, value )
       # TODO: name must start with 'oauth_'
@@ -227,13 +247,13 @@ class HTTP < Net::HTTP
       @oauth_params || {}
     end
   end
-  
+
   class Get < Net::HTTP::Get
     include OAuthParamsHandler
   end
   class Post < Net::HTTP::Post
     include OAuthParamsHandler
   end
-  
+
 end
 end

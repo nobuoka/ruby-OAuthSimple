@@ -20,6 +20,8 @@ module HelperFunctions
     ( time - Time.utc( 1970, 1, 1 ) ).to_i().to_s()
   end
   
+  # HMAC-SHA1
+  # RSA-SHA1
   def calc_signature( method, uri_str, param_list, secret_str )
     params_str = param_list.get_normalized_params_str()
     #sb_str = String.new()
