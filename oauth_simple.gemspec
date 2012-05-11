@@ -14,6 +14,7 @@ Gem::Specification.new do |spec|
   spec.files = FileList[
     'README.rdoc',
     'rakefile.rb',
+    '.gemtest',
     'lib/**/*',
     'test/**/*',
     #".document",
