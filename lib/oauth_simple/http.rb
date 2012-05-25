@@ -34,6 +34,31 @@ class HTTP < Net::HTTP
     end
   end
 
+  # This class just used internally
+  class Params
+    class KeyValuesMap < Hash
+      include HelperFunctions
+      def initialize
+        super{|h,k| h[k] = [] } # it's not good idea
+      end
+      def get_normalized_params_str
+        kvs_pairs = self.map do |e| # [ key, [ val, val, val, ... ] ]
+          k = enc_perenc( e[0] )
+          vs = e[1].map{|v| v ? enc_perenc( v ) : '' }.sort!{|a,b| a <=> b }
+          [ k, vs ]
+        end
+        kvs_pairs.sort!{|a,b| a[0] <=> b[0] }
+        kvs_pairs.map!{|e| e[1].map{|v| "#{e[0]}=#{v}" }.join('&') }
+        return kvs_pairs.join('&')
+      end
+      def concat_percent_encoded_str( str )
+        HelperFunctions.decode_from_percent_encoded_str( str ).each do |pair|
+          self[pair[0]] << pair[1]
+        end
+      end
+    end
+  end
+
   # :stopdoc:
   # 空のハッシュを表す定数
   EMPTY_HASH = {}.freeze
@@ -138,6 +163,25 @@ class HTTP < Net::HTTP
       param_list.concat p_params
       param_list.concat RequestParamList.from_percent_encoded_str query_str if query_str
       param_list.concat RequestParamList.from_percent_encoded_str body_str  if body_str
+
+      # 新 params
+      params = Params::KeyValuesMap.new
+      params['oauth_consumer_key'    ] << @oauth_consumer_key     if @oauth_consumer_key
+      params['oauth_token'           ] << @oauth_token            if @oauth_token
+      params['oauth_signature_method'] << @oauth_signature_method if @oauth_signature_method
+      params['oauth_timestamp'       ] << create_timestamp_str()
+      params['oauth_nonce'           ] << create_nonce_str()
+      params['oauth_version'         ] << '1.0'
+      if req.respond_to? :oauth_params
+        req.oauth_params.each_pair do |key,value|
+          params[key] << value
+        end
+      end
+      params.concat_percent_encoded_str( query_str ) if query_str
+      params.concat_percent_encoded_str( body_str  ) if body_str
+
+      p param_list.get_normalized_params_str
+      p params.get_normalized_params_str
 
       # signature の計算
       uri_str = "#{uri_str_scheme}://#{uri_str_host}#{uri_str_path}"
