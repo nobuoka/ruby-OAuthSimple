@@ -33,7 +33,7 @@ module HelperFunctions
     #end
     base_str = [ method, uri_str, params_str ].map{ |e| enc_perenc(e) }.join('&')
     digest = OpenSSL::HMAC::digest( OpenSSL::Digest::SHA1.new(), secret_str, base_str )
-    return [digest].pack('m').delete!("\n")
+    return [digest].pack('m').delete("\n")
   end
 
   # param  : String
