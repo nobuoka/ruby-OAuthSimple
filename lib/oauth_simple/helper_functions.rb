@@ -4,22 +4,22 @@ require 'openssl'
 
 module OAuthSimple
 module HelperFunctions
-  
+
   # ====================
   #   MODULE FUNCTIONS
   # ====================
   module_function
-  
+
   # nonce 用にランダムに文字列生成するメソッド
   NONCE_STRING_SOURCE = ('a'..'z').to_a() + ('A'..'Z').to_a() + ('0'..'9').to_a()
   def create_nonce_str( length = 16 )
     Array.new( length ).map{ NONCE_STRING_SOURCE[rand(NONCE_STRING_SOURCE.size)] }.join('')
   end
-  
+
   def create_timestamp_str( time = Time.now )
     ( time - Time.utc( 1970, 1, 1 ) ).to_i().to_s()
   end
-  
+
   # HMAC-SHA1
   # RSA-SHA1
   def calc_signature( method, uri_str, param_list, secret_str )
@@ -33,9 +33,9 @@ module HelperFunctions
     #end
     base_str = [ method, uri_str, params_str ].map{ |e| enc_perenc(e) }.join('&')
     digest = OpenSSL::HMAC::digest( OpenSSL::Digest::SHA1.new(), secret_str, base_str )
-    return [digest].pack('m').gsub!( /\n/u, '' )
+    return [digest].pack('m').delete!("\n")
   end
-  
+
   # param  : String
   # return : [ [ String, String or nil ], ... ]
   def decode_from_percent_encoded_str( str )
@@ -49,7 +49,7 @@ module HelperFunctions
       end
     end
   end
-  
+
   # param  : [ [ String, String or nil ], ... ]
   # return : String
   def encode_to_percent_encoded_str_pairs( str_pairs )
@@ -78,6 +78,6 @@ module HelperFunctions
       e_str
     end
   end
-  
+
 end
 end
