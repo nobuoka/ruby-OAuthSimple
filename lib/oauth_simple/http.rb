@@ -25,11 +25,16 @@ class HTTP < Net::HTTP
       @signature_method = sig_met
     end
 
+    def set_default_oauth_params_location( location )
+      @oauth_params_location = location
+    end
+
     def get_default_params
       params = {}
       params[:oauth_client_credentials] = @client_credentials if @client_credentials
       params[:oauth_user_credentials  ] = @user_credentials   if @user_credentials
       params[:signature_method        ] = @signature_method   if @signature_method
+      params[:oauth_params_location   ] = @oauth_params_location if @oauth_params_location
       return params
     end
   end
@@ -59,6 +64,9 @@ class HTTP < Net::HTTP
         if default_params.has_key? :signature_method
           # at this time, only 'HMAC-SHA1' is supported
           self.set_oauth_signature_method( default_params[:signature_method] )
+        end
+        if default_params.has_key? :oauth_params_location
+          self.set_oauth_params_location( default_params[:oauth_params_location] )
         end
       end
     end
@@ -99,7 +107,7 @@ class HTTP < Net::HTTP
       #      [W3C.REC-html40-19980424].
       #   o  The HTTP request entity-header includes the "Content-Type" header
       #      field set to "application/x-www-form-urlencoded".
-      body_str = nil
+      body_str = nil # body_str は req body に oauth パラメータを追加できる場合には nil でない
       if req.request_body_permitted?
         content_type = req.content_type || 'application/x-www-form-urlencoded'
         if content_type == 'application/x-www-form-urlencoded'
@@ -136,34 +144,36 @@ class HTTP < Net::HTTP
 
       param_list = RequestParamList.new()
       param_list.concat p_params
-      param_list.concat RequestParamList.from_percent_encoded_str query_str if query_str
-      param_list.concat RequestParamList.from_percent_encoded_str body_str  if body_str
+      if query_str
+        q_params = RequestParamList.from_percent_encoded_str query_str
+        param_list.concat q_params
+      end
+      if body_str
+        b_params = RequestParamList.from_percent_encoded_str body_str
+        param_list.concat b_params
+      end
 
       # signature の計算
       uri_str = "#{uri_str_scheme}://#{uri_str_host}#{uri_str_path}"
       signature = calc_signature( req_method, uri_str, param_list, secret_str )
 
-      case @oauth_params_loc
-      when LOC_AUTHORIZATION_HEADER
+      p_params.add( 'oauth_signature', signature )
+      if @oauth_params_loc == LOC_AUTHORIZATION_HEADER
         # Authorization Header
-        p_params.add( 'oauth_signature', signature )
         req.add_field( 'Authorization', 'OAuth ' + p_params.to_header_string() )
-      when LOC_REQBODY_OR_REQQUERY
-        # req body or req query
-        raise 'not implemented yet'
-      when LOC_REQQUERY
-        # req query
-        raise 'not implemented yet'
+      elsif @oauth_params_loc == LOC_REQBODY_OR_REQQUERY and body_str
+        req.body = b_params.concat( p_params ).to_query_string
       else
-        # error
-        raise 'invalid location'
+        new_query_str = ( q_params ? q_params.concat( p_params ) : p_params ).to_query_string
+        qpath, uri_str_fragment = req.path.split( '#', 2 )
+        req.path = [ [ uri_str_path, new_query_str ].join( '?' ), uri_str_fragment ].join( '#' )
       end
     end
     return super # 引数, block をそのまま継承先へ渡す
   end
 
   def use_oauth=( val )
-    @use_oauth = val
+    @use_oauth = !!val
   end
 
   def use_oauth?
