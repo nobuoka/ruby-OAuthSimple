@@ -88,7 +88,7 @@ class TestLocalHttp < MiniTest::Unit::TestCase
 
   end
 
-  def test_1
+  def test_protocol_params_in_auth_header
     # OAuthSimple::HTTP is a subclass of Net::HTTP
     http_class = OAuthSimple::HTTP.create_subclass_with_default_oauth_params()
     http_class.set_default_oauth_client_credentials( 'MyKey', 'MySecret' )
@@ -106,6 +106,70 @@ class TestLocalHttp < MiniTest::Unit::TestCase
         kv_map[kv_pair[0]] = kv_pair[1]
       end
       assert_equal kv_map['oauth_signature'], '"DLzSR6NYLv5a3wk4%2BGEjpYS8IQY%3D"'
+    }
+    client_proc = ->() {
+      http = http_class.new( '127.0.0.1', port )
+      # connection start
+      http.start() do |http|
+        http.request_post( '/request_token', '' ) do |res|
+          assert_equal( '200', res.code )
+        end
+      end
+    }
+    do_test_with_webrick_server( server_proc, client_proc, Port: port )
+    assert true, 'dame-'
+  end
+
+  def test_protocol_params_in_req_body
+    # OAuthSimple::HTTP is a subclass of Net::HTTP
+    http_class = OAuthSimple::HTTP.create_subclass_with_default_oauth_params()
+    http_class.set_default_oauth_client_credentials( 'MyKey', 'MySecret' )
+    #http_class.set_default_oauth_user_credentials( key, secret )
+    http_class.set_default_oauth_signature_method( 'HMAC-SHA1' )
+    http_class.set_default_oauth_params_location( :reqbody_or_reqquery )
+
+    port = '10080'
+    server_proc = ->(req,res) {
+      assert ( not req.header.has_key?( 'authorization' ) ), 'has key Authrization'
+      vv = req.body.split( /&/ )
+      kv_map = {}
+      vv.each do |v|
+        kv_pair = v.split( /=/, 2 )
+        kv_map[kv_pair[0]] = kv_pair[1]
+      end
+      assert_equal kv_map['oauth_signature'], 'DLzSR6NYLv5a3wk4%2BGEjpYS8IQY%3D'
+     }
+    client_proc = ->() {
+      http = http_class.new( '127.0.0.1', port )
+      # connection start
+      http.start() do |http|
+        http.request_post( '/request_token', '' ) do |res|
+          assert_equal( '200', res.code )
+        end
+      end
+    }
+    do_test_with_webrick_server( server_proc, client_proc, Port: port )
+    assert true, 'dame-'
+  end
+
+  def test_protocol_params_in_query_params
+    # OAuthSimple::HTTP is a subclass of Net::HTTP
+    http_class = OAuthSimple::HTTP.create_subclass_with_default_oauth_params()
+    http_class.set_default_oauth_client_credentials( 'MyKey', 'MySecret' )
+    #http_class.set_default_oauth_user_credentials( key, secret )
+    http_class.set_default_oauth_signature_method( 'HMAC-SHA1' )
+    http_class.set_default_oauth_params_location( :reqquery )
+
+    port = '10080'
+    server_proc = ->(req,res) {
+      assert ( not req.header.has_key?( 'authorization' ) ), 'has key Authrization'
+      vv = req.query_string.split( /&/ )
+      kv_map = {}
+      vv.each do |v|
+        kv_pair = v.split( /=/, 2 )
+        kv_map[kv_pair[0]] = kv_pair[1]
+      end
+      assert_equal kv_map['oauth_signature'], 'DLzSR6NYLv5a3wk4%2BGEjpYS8IQY%3D'
     }
     client_proc = ->() {
       http = http_class.new( '127.0.0.1', port )

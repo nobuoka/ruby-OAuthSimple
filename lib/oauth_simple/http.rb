@@ -166,7 +166,7 @@ class HTTP < Net::HTTP
       else
         new_query_str = ( q_params ? q_params.concat( p_params ) : p_params ).to_query_string
         qpath, uri_str_fragment = req.path.split( '#', 2 )
-        req.path = [ [ uri_str_path, new_query_str ].join( '?' ), uri_str_fragment ].join( '#' )
+        req.path[0..-1] = [ [ uri_str_path, new_query_str ].join( '?' ), uri_str_fragment ].join( '#' )
       end
     end
     return super # 引数, block をそのまま継承先へ渡す
