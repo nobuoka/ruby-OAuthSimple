@@ -12,6 +12,29 @@ require 'oauth_simple/http'
 
 class TestLocalHttp < MiniTest::Unit::TestCase
 
+  def setup
+    OAuthSimple::HelperFunctions.module_eval do
+      # signature 'DLzSR6NYLv5a3wk4%2BGEjpYS8IQY%3D'
+      alias :tmp_cts :create_timestamp_str
+      alias :tmp_cns :create_nonce_str
+      def create_timestamp_str
+        '1338567554'
+      end
+      def create_nonce_str # overwrite for test
+        'gV5JSqJR8m9xzYR3'
+      end
+    end
+  end
+
+  def teardown
+    OAuthSimple::HelperFunctions.module_eval do
+      alias :create_nonce_str :tmp_cns
+      alias :create_timestamp_str :tmp_cts
+      remove_method :tmp_cns
+      remove_method :tmp_cts
+    end
+  end
+
   def do_test_with_webrick_server( server_proc, client_proc, opts = {} )
     opts = { Port: '10080' }.merge opts
 
@@ -63,16 +86,6 @@ class TestLocalHttp < MiniTest::Unit::TestCase
       end
     end
 
-  end
-
-  # signature 'DLzSR6NYLv5a3wk4%2BGEjpYS8IQY%3D'
-  module OAuthSimple::HelperFunctions
-    def create_nonce_str # overwrite for test
-      'gV5JSqJR8m9xzYR3'
-    end
-    def create_timestamp_str # overwrite for test
-      '1338567554'
-    end
   end
 
   def test_1
