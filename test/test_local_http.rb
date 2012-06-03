@@ -12,42 +12,33 @@ require 'oauth_simple/http'
 
 class TestLocalHttp < MiniTest::Unit::TestCase
 
-  # OAuthSimple::HTTP is a subclass of Net::HTTP
-  MyHTTP = OAuthSimple::HTTP.create_subclass_with_default_oauth_params()
-  MyHTTP.set_default_oauth_client_credentials( '775f44e3e40459a8', '8f6fbb343c4a45c3f69594c7b943' )
-  #MyHTTP.set_default_oauth_user_credentials( key, secret )
-  MyHTTP.set_default_oauth_signature_method( 'HMAC-SHA1' )
+  def do_test_with_webrick_server( server_proc, client_proc, opts = {} )
+    opts = { Port: '10080' }.merge opts
 
-  ###
-  # test by using OAuth Test Server : http://oauth-sandbox.sevengoslings.net/
-  #   Request Token URL     : http://oauth-sandbox.sevengoslings.net/request_token
-  #   User Authorization URL: http://oauth-sandbox.sevengoslings.net/authorize
-  #   Access Token URL      : http://oauth-sandbox.sevengoslings.net/access_token 
-  def test_getting_request_token
     m = Mutex.new
     state = nil
     test_thread = Thread.current
     server_thread = nil
-    server = WEBrick::HTTPServer.new( BindAddress: '127.0.0.1', Port: '10080', ServerType: Thread,
-       StartCallback: ->(){
-          #$stderr << "[DEBUG] start!!!!\n"
+    server_errors = []
+    server = WEBrick::HTTPServer.new( BindAddress: '127.0.0.1', Port: opts[:Port],
+        ServerType: Thread,
+        StartCallback: ->(){
           m.synchronize {
             if state == :waiting_startup
               server_thread = Thread.current
               test_thread.wakeup
+            else
+              server.shutdown
             end
           }
-    #}, StopCallback: ->() {
-          #$stderr << "[DEBUG] stop!!!!\n"
-    } )
+        } )
     server.mount_proc( '/' ) do |req,res|
       begin
-        p req.body
-      rescue => err
-        puts err.backtrace
+        server_proc.call( req, res )
+      rescue Object => err
+        server_errors << err
+        raise
       end
-      res.body = 'test'
-      assert "server ok"
     end
     server.start
 
@@ -59,39 +50,61 @@ class TestLocalHttp < MiniTest::Unit::TestCase
       raise 'server not started' if server_thread.nil?
       state = nil
     }
-    $stderr << "[DEBUG] test test\n"
+
     begin
-      http = MyHTTP.new( '127.0.0.1', '10080' )
+      client_proc.call
+    ensure
+      server.shutdown
+      server_thread.join
+    end
+    if not server_errors.empty?
+      server_errors.each do |err|
+        raise err
+      end
+    end
+
+  end
+
+  # signature 'DLzSR6NYLv5a3wk4%2BGEjpYS8IQY%3D'
+  module OAuthSimple::HelperFunctions
+    def create_nonce_str # overwrite for test
+      'gV5JSqJR8m9xzYR3'
+    end
+    def create_timestamp_str # overwrite for test
+      '1338567554'
+    end
+  end
+
+  def test_1
+    # OAuthSimple::HTTP is a subclass of Net::HTTP
+    http_class = OAuthSimple::HTTP.create_subclass_with_default_oauth_params()
+    http_class.set_default_oauth_client_credentials( 'MyKey', 'MySecret' )
+    #http_class.set_default_oauth_user_credentials( key, secret )
+    http_class.set_default_oauth_signature_method( 'HMAC-SHA1' )
+
+    port = '10080'
+    server_proc = ->(req,res) {
+      assert req.header.has_key?( 'authorization' ), 'has key Authrization'
+      auth_header_str = req['authorization'].gsub( /\AOAuth\s+/, '' )
+      vv = auth_header_str.split( /,\s*/ )
+      kv_map = {}
+      vv.each do |v|
+        kv_pair = v.split( /=/, 2 )
+        kv_map[kv_pair[0]] = kv_pair[1]
+      end
+      assert_equal kv_map['oauth_signature'], '"DLzSR6NYLv5a3wk4%2BGEjpYS8IQY%3D"'
+    }
+    client_proc = ->() {
+      http = http_class.new( '127.0.0.1', port )
       # connection start
       http.start() do |http|
-        assert_equal( http.class, MyHTTP )
         http.request_post( '/request_token', '' ) do |res|
           assert_equal( '200', res.code )
         end
       end
-    rescue
-      $stderr << "failed test...\n"
-    else
-      assert "client ok"
-    end
-
-    server.shutdown
-    server_thread.join
-=begin
-    http = MyHTTP.new( 'oauth-sandbox.sevengoslings.net' )
-    # connection start
-    http.start() do |http|
-      assert_equal( http.class, MyHTTP )
-      http.request_post( '/request_token', nil ) do |res|
-        assert_equal( '200', res.code )
-        #assert_equal( 'oauth_token=requestkey&oauth_token_secret=requestsecret', res.body )
-      end
-
-      #token, secret = http.request_oauth_temp_credentials( '/oauth/example/request_token.php', 'oob' )
-      #assert_equal( 'requestkey'   , token  )
-      #assert_equal( 'requestsecret', secret )
-    end
-=end
+    }
+    do_test_with_webrick_server( server_proc, client_proc, Port: port )
+    assert true, 'dame-'
   end
 
 end
